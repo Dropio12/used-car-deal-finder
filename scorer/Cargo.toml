@@ -1,0 +1,19 @@
+[package]
+name = "carbuyer-scorer"
+version = "0.1.0"
+edition = "2021"
+description = "Local price baseline and underpriced-listing scoring for carbuyer (port of src/price-model.js, src/discount.js, src/trim.js)"
+publish = false
+
+[lib]
+name = "scorer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "carbuyer-scorer"
+path = "src/main.rs"
+
+[dependencies]
+regex = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
+unicode-normalization = "0.1"

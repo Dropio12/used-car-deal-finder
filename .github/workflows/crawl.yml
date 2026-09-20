@@ -1,0 +1,72 @@
+# Scheduled crawl: fetch the searches in crawler/searches.yml from AutoHebdo
+# and push the listings to the carbuyer Worker (POST /api/listings). The
+# Worker stores them in D1, scores them, and records strong new deals in
+# new_deal_alerts (shown under "New deals" on the dashboard).
+#
+# Setup (once, in the GitHub repo): Settings > Secrets and variables > Actions
+#   Secrets   > New repository secret   CARBUYER_INGEST_TOKEN = the Worker's INGEST_TOKEN
+#   Variables > New repository variable CARBUYER_API_URL      = https://carbuyer-api.<you>.workers.dev
+# Until CARBUYER_API_URL is set, scheduled runs are skipped (so forks stay quiet).
+#
+# Politeness: one job at a time (concurrency), one request at a time inside it,
+# at least delaySeconds (>= 1.5 s) between requests, a normal browser
+# User-Agent, a small page budget, and the run stops at the first error.
+name: crawl
+
+on:
+  schedule:
+    # Every 30 minutes (UTC). GitHub may start scheduled runs a few minutes
+    # late, and pauses schedules after 60 days without repo activity.
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      searches:
+        description: "Searches file (relative to crawler/)"
+        default: "searches.yml"
+        required: true
+
+permissions:
+  contents: read
+
+# Never two crawls at once: a slow run makes the next one wait, not overlap.
+concurrency:
+  group: crawl
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    if: vars.CARBUYER_API_URL != '' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: crawler
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: crawler/go.mod
+          cache-dependency-path: crawler/go.sum
+
+      - name: Check configuration
+        env:
+          CARBUYER_INGEST_TOKEN: ${{ secrets.CARBUYER_INGEST_TOKEN }}
+          CARBUYER_API_URL: ${{ vars.CARBUYER_API_URL }}
+        run: |
+          [ -n "$CARBUYER_API_URL" ] || { echo "::error::repository variable CARBUYER_API_URL is not set"; exit 1; }
+          [ -n "$CARBUYER_INGEST_TOKEN" ] || { echo "::error::repository secret CARBUYER_INGEST_TOKEN is not set"; exit 1; }
+          case "$CARBUYER_API_URL" in https://*) ;; *) echo "::error::CARBUYER_API_URL must start with https://"; exit 1;; esac
+
+      - name: Build the crawler
+        run: go build -trimpath -o "$RUNNER_TEMP/carbuyer" ./cmd/carbuyer
+
+      # --no-score: the Worker scores; the runner's SQLite file is throwaway.
+      - name: Crawl and push
+        env:
+          CARBUYER_INGEST_TOKEN: ${{ secrets.CARBUYER_INGEST_TOKEN }}
+          CARBUYER_API_URL: ${{ vars.CARBUYER_API_URL }}
+          SEARCHES: ${{ inputs.searches || 'searches.yml' }}
+        run: |
+          "$RUNNER_TEMP/carbuyer" --searches "$SEARCHES" --no-score \
+            --db "$RUNNER_TEMP/carbuyer.db" --push "$CARBUYER_API_URL"

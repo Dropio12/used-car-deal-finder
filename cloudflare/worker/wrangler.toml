@@ -1,0 +1,63 @@
+# carbuyer API Worker (Rust, workers-rs).
+#
+# Nothing here is deployed until you run `npx wrangler deploy` yourself.
+# See ../../DEPLOY.md for the full first-time setup.
+
+name = "carbuyer-api"
+main = "build/index.js"
+compatibility_date = "2026-09-01"
+
+# Your Cloudflare account id (dashboard sidebar, or `npx wrangler whoami`).
+# Leave it commented to let wrangler pick the account you are logged into.
+# account_id = "<YOUR_ACCOUNT_ID>"
+
+# The API is reachable at https://carbuyer-api.<your-subdomain>.workers.dev.
+# Put Cloudflare Access in front of it (DEPLOY.md, step 8).
+workers_dev = true
+
+# Compiles src/ to wasm with worker-build; `wrangler dev` and `wrangler deploy`
+# both run this first.
+[build]
+command = "node build.mjs"
+
+# D1 database. `npx wrangler d1 create carbuyer` prints the real id: paste it
+# over the placeholder below. The placeholder is fine for local dev (--local).
+[[d1_databases]]
+binding = "DB"                                        # env.d1("DB") in src/entry.rs
+database_name = "carbuyer"
+database_id = "b97b600d-446e-4df2-93a5-b710f0a99235"
+migrations_dir = "../d1/migrations"
+
+# Daily re-score: stores the best deals in deal_snapshots / deal_snapshot_items.
+# 11:00 UTC = 07:00 in Quebec (06:00 in winter). Cron times are always UTC.
+[triggers]
+crons = ["0 11 * * *"]
+
+[vars]
+# Scorer minComps used by the cron job and by /api/deals when the request has
+# no ?minComps=. Empty = the scorer default (8 comparable cars per bucket).
+DEFAULT_MIN_COMPS = ""
+# "false": /api/deals and /api/snapshots/latest answer only through the Pages
+# service binding (the Access-protected dashboard). The public workers.dev
+# hostname then serves just /api/health and the bearer-protected ingest.
+# Set "true" only if you also put Cloudflare Access on the Worker (DEPLOY.md).
+# .dev.vars sets it to "true" for local curl testing.
+PUBLIC_READ_API = "false"
+
+# Snipe alerts (src/alerts.rs): when a pushed listing is new, relisted or
+# cheaper and prices at least ALERT_MIN_DISCOUNT_PCT % under the local
+# baseline of at least ALERT_MIN_COMPS comparable cars, it is stored once in
+# new_deal_alerts and shown under "New deals" on the dashboard (GET /api/alerts).
+# Damaged cars are skipped unless ALERT_INCLUDE_DAMAGED = "true".
+ALERTS_ENABLED = "true"
+ALERT_MIN_DISCOUNT_PCT = "15"
+ALERT_MIN_COMPS = "6"
+ALERT_INCLUDE_DAMAGED = "false"
+
+# Secrets are NOT in this file:
+#   INGEST_TOKEN  bearer token for POST /api/listings
+#                 production: npx wrangler secret put INGEST_TOKEN
+#                 local dev:  put INGEST_TOKEN=... in .dev.vars (git-ignored)
+
+[observability]
+enabled = true

@@ -1,0 +1,24 @@
+[package]
+name = "carbuyer-worker"
+version = "0.1.0"
+edition = "2021"
+description = "Cloudflare Worker for carbuyer: ingest listings into D1, serve scored deals, daily snapshot"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+carbuyer-scorer = { path = "../../scorer" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+# The Workers runtime bindings are only needed (and only built) for wasm32.
+# The pure modules are tested natively with `cargo test`.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+worker = { version = "0.8", features = ["d1"] }
+
+[profile.release]
+lto = true
+opt-level = "s"
+codegen-units = 1

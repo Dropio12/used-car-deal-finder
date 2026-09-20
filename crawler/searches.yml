@@ -1,0 +1,46 @@
+# Searches the scheduled crawl runs (GitHub Actions .github/workflows/crawl.yml
+# and scripts/crawl-and-push.ps1). Edit freely; the crawler checks this file
+# and refuses unknown keys, so a typo cannot silently drop a filter.
+#
+#   go run ./cmd/carbuyer --searches searches.yml --no-score      # dry run, local SQLite only
+#
+# Politeness is built in: searches run one after another, one request at a
+# time, at least `delaySeconds` apart (never less than 1.5 s), with a normal
+# browser User-Agent, and the run stops at the first error.
+# Keep it small: every run fetches (searches x pages) pages.
+# 4 searches x 2 pages = 8 requests, about 25 s, every 30 minutes.
+
+delaySeconds: 3
+
+# Applied to every search unless the search sets its own value.
+defaults:
+  geo: reg_qc        # all of Quebec. Others: cit_montreal, cit_quebec
+  seller: any        # any | dealer | private
+  maxPrice: 30000    # price cap in CAD (server-side filter)
+  pages: 2           # 20 listings per page
+  newest: true       # newest listings first: new deals show up on page 1
+
+# make / model are AutoHebdo URL slugs (as in autohebdo.net/autos/<make>/<model>).
+# A wrong slug is detected and stops the run with a clear message.
+# Optional per search: name, geo, seller, minPrice, maxPrice, minYear, maxYear, pages, newest.
+searches:
+  - make: toyota
+    model: rav4
+  - make: honda
+    model: civic
+  - make: toyota
+    model: corolla
+  - make: hyundai
+    model: elantra
+
+# More ideas. Check a new slug once by hand before adding it (one page, polite):
+#   go run ./cmd/carbuyer --make honda --model cr-v --pages 1 --no-score
+#  - make: honda
+#    model: cr-v
+#  - make: mazda
+#    model: cx-5
+#  - make: toyota
+#    model: rav4
+#    name: rav4 private under 20k
+#    seller: private
+#    maxPrice: 20000

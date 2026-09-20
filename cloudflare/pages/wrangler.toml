@@ -1,0 +1,16 @@
+# carbuyer dashboard (Cloudflare Pages): static files in public/ plus one
+# Pages Function (functions/api/[[path]].js) that forwards read-only API
+# calls to the Worker over a service binding. The page and its API are then
+# one origin, so one Cloudflare Access application protects both, and the
+# browser never needs CORS or a second Access login.
+#
+# Nothing here is deployed until you run `npx wrangler pages deploy` yourself.
+
+name = "carbuyer-dashboard"
+pages_build_output_dir = "public"
+compatibility_date = "2026-09-01"
+
+# The Worker from ../worker (its `name`). Deploy the Worker first.
+[[services]]
+binding = "API"
+service = "carbuyer-api"

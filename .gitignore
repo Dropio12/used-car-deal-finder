@@ -1,0 +1,21 @@
+# build output
+scorer/target/
+crawler/bin/
+*.exe
+
+# data: never commit databases, secrets, logs or photos
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+*.log
+photos/
+backups/
+
+# Cloudflare: local secrets, wrangler state, worker build output
+.dev.vars
+.wrangler/
+cloudflare/worker/build/
+cloudflare/worker/target/
+node_modules/
