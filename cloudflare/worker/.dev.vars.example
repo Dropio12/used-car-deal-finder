@@ -1,0 +1,4 @@
+# Copy to .dev.vars for `npx wrangler dev`. .dev.vars is git-ignored.
+INGEST_TOKEN=local-dev-token-change-me
+# Let local curl call /api/deals directly (production default is "false").
+PUBLIC_READ_API=true

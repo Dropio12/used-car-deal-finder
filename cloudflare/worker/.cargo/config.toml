@@ -1,0 +1,17 @@
+# Native builds on Windows (cargo test, and the host build scripts that
+# worker-build compiles): link the MSVC C runtime statically, as scorer/ does.
+# On the development machine the shared vcruntime140.dll is not readable, so a
+# dynamically linked build script fails with 0xC0000022.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+# When cross-compiling to wasm32, cargo does not apply the rustflags above to
+# build scripts. `build.mjs` sets RUSTC_BOOTSTRAP=1 on Windows so these
+# (otherwise nightly-only) settings take effect and build scripts are linked
+# statically too. Other platforms ignore this section.
+[unstable]
+host-config = true
+target-applies-to-host = true
+
+[host]
+rustflags = ["-C", "target-feature=+crt-static"]

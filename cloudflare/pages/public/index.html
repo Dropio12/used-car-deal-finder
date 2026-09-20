@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>carbuyer deals</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>carbuyer deals</h1>
+    <p class="sub">Used cars in Quebec priced under the local baseline of comparable cars.</p>
+  </header>
+
+  <section id="alerts" aria-labelledby="alerts-title">
+    <div class="alerts-head">
+      <h2 id="alerts-title">New deals</h2>
+      <span id="alerts-status" class="muted" role="status">Loading...</span>
+    </div>
+    <ol id="alerts-list" class="alerts" hidden></ol>
+  </section>
+
+  <h2 class="section-title">All deals</h2>
+  <form id="filters" autocomplete="off">
+    <label>Make <input name="make" placeholder="toyota"></label>
+    <label>Model <input name="model" placeholder="rav4"></label>
+    <label>Seller
+      <select name="seller">
+        <option value="">any</option>
+        <option value="dealer">dealer</option>
+        <option value="private">private</option>
+      </select>
+    </label>
+    <label>Min comps <input name="minComps" type="number" min="1" step="1" placeholder="8"></label>
+    <label>Show <input name="limit" type="number" min="1" max="200" value="25"></label>
+    <label>Data
+      <select name="source">
+        <option value="live">live (score now)</option>
+        <option value="snapshot">last daily snapshot</option>
+      </select>
+    </label>
+    <button type="submit">Search</button>
+  </form>
+
+  <p id="status" role="status">Loading...</p>
+
+  <div class="table-wrap">
+    <table id="deals" hidden>
+      <thead>
+        <tr>
+          <th class="num">Under</th><th>Year</th><th>Car</th><th>Trim</th>
+          <th class="num">Price</th><th class="num">Baseline</th><th class="num">Km</th>
+          <th>Basis</th><th>Seller</th><th>City</th><th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <footer>Baseline = median price of comparable listings (same model, year and region), adjusted for km and trim. "Under" = how far the price sits below it.</footer>
+  <script src="app.js" type="module"></script>
+</body>
+</html>

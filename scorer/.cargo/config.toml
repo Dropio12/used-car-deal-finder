@@ -1,0 +1,6 @@
+# Link the MSVC C runtime statically. On the development machine the shared
+# vcruntime140.dll is not readable, so a dynamically linked binary (including
+# cargo build scripts) fails to start with 0xC0000022. Static linking also
+# makes the scorer a single self-contained .exe.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
