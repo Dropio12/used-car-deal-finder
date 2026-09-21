@@ -210,3 +210,19 @@ func TestCrawlLog(t *testing.T) {
 		t.Errorf("stats = %+v, %v", c, err)
 	}
 }
+
+func TestVocabularyIsPerSource(t *testing.T) {
+	db := open(t)
+	civic := car("b", 15000, "Dealer")
+	civic.Make, civic.Model, civic.Source = listing.Str("Honda"), listing.Str("Civic"), "lespac"
+	if _, err := db.Save(ctx, []listing.Listing{car("a", 20000, "Dealer"), civic}, scope("2026-09-20T10:00:00.000Z")); err != nil {
+		t.Fatal(err)
+	}
+	makes, models, err := db.Vocabulary(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(makes) != 1 || makes[0] != "Toyota" || len(models) != 1 || models[0] != (VocabModel{"Toyota", "RAV4"}) {
+		t.Fatalf("got %v %v, want only the AutoHebdo Toyota RAV4", makes, models)
+	}
+}

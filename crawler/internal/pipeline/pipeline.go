@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"carbuyer/crawler/internal/listing"
@@ -54,6 +55,10 @@ type Pipeline struct {
 	Store  store.Store
 	Scorer scoring.Scorer
 	Now    func() time.Time
+	// CompsFromAllSources prices against every stored listing, not only this
+	// source's. Sources with few dealer cars (LesPAC, Craigslist, Marketplace)
+	// need the AutoHebdo and Kijiji dealer baseline to price anything.
+	CompsFromAllSources bool
 }
 
 // New builds a pipeline from its three collaborators.
@@ -97,6 +102,10 @@ func (p *Pipeline) Run(ctx context.Context, q listing.Query, onPage func(source.
 	geo := q.Geo
 	if geo == "" {
 		geo = searchurl.GeoQuebec
+	}
+	if name := p.Source.Name(); name != "autohebdo" {
+		// Each site's geo tokens mean something different; keep scopes apart.
+		geo = name + "-" + strings.TrimPrefix(geo, "reg_")
 	}
 	scope := store.Scope{MakeSlug: strPtr(q.Make), ModelSlug: strPtr(q.Model), GeoSlug: &geo, SeenAt: store.ISOTime(now())}
 
@@ -153,8 +162,13 @@ func (p *Pipeline) Run(ctx context.Context, q listing.Query, onPage func(source.
 		return Report{}, err
 	}
 
-	// Comps: every active listing from this source, dealers and private sellers.
-	stored, err := p.Store.LoadListings(ctx, store.Filter{Source: p.Source.Name()})
+	// Comps: every active listing from this source (or every source), dealers
+	// and private sellers.
+	filter := store.Filter{Source: p.Source.Name()}
+	if p.CompsFromAllSources {
+		filter.Source = ""
+	}
+	stored, err := p.Store.LoadListings(ctx, filter)
 	if err != nil {
 		return Report{}, err
 	}

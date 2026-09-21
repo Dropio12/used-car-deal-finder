@@ -7,14 +7,20 @@
 # Politeness is built in: searches run one after another, one request at a
 # time, at least `delaySeconds` apart (never less than 1.5 s), with a normal
 # browser User-Agent, and the run stops at the first error.
-# Keep it small: every run fetches (searches x pages) pages.
-# 4 searches x 2 pages = 8 requests, about 25 s, every 30 minutes.
+# Keep it small: every run fetches about (searches x pages) pages, plus a few
+# per site (Facebook: `pages` requests per city, Craigslist: up to 20 ad pages,
+# CarGurus: `pages` per model year). This file is about 70 requests, ~4 min.
+#
+# `source` picks the site: autohebdo (default), kijiji, lespac, facebook,
+# craigslist, cargurus. The sites that walk a whole region (kijiji, lespac,
+# craigslist, cargurus) take no make/model. The most fragile sites go last,
+# because the run stops at the first error.
 
 delaySeconds: 3
 
 # Applied to every search unless the search sets its own value.
 defaults:
-  geo: reg_qc        # all of Quebec. Others: cit_montreal, cit_quebec
+  geo: reg_on        # all of Ontario (AutoHebdo). Quebec: reg_qc
   seller: any        # any | dealer | private
   maxPrice: 30000    # price cap in CAD (server-side filter)
   pages: 2           # 20 listings per page
@@ -22,8 +28,10 @@ defaults:
 
 # make / model are AutoHebdo URL slugs (as in autohebdo.net/autos/<make>/<model>).
 # A wrong slug is detected and stops the run with a clear message.
-# Optional per search: name, geo, seller, minPrice, maxPrice, minYear, maxYear, pages, newest.
+# Optional per search: source, name, geo, seller, minPrice, maxPrice, minYear, maxYear, pages, newest.
+# `geo` means something different on each site: see `carbuyer --help`.
 searches:
+  # Ontario.
   - make: toyota
     model: rav4
   - make: honda
@@ -32,6 +40,38 @@ searches:
     model: corolla
   - make: hyundai
     model: elantra
+  - source: kijiji          # all of Ontario; price filter not supported, ignored
+    geo: ontario
+  - source: cargurus        # dealers only, but with CarGurus' own price estimate
+    geo: toronto            # 100 km around Toronto
+    minYear: 2020           # one request per model year: keep the range short
+    pages: 1
+  - source: craigslist
+    geo: toronto            # also: ottawa, hamilton, kitchener, london, windsor ...
+    pages: 1
+  - source: facebook        # Marketplace, logged out; 2 requests per city, 14 cities
+    geo: ontario
+    pages: 2
+
+  # Quebec, kept as a reference. Uncomment to watch it too; prices never mix,
+  # the scorer keeps each province apart. Mind the 25-search limit.
+  #  - make: toyota
+  #    model: rav4
+  #    geo: reg_qc
+  #  - source: kijiji
+  #    geo: quebec
+  #  - source: lespac        # Quebec only, private sellers, 200 km around Montreal
+  #    pages: 2
+  #  - source: cargurus
+  #    geo: montreal
+  #    minYear: 2020
+  #    pages: 1
+  #  - source: craigslist
+  #    geo: montreal
+  #    pages: 1
+  #  - source: facebook
+  #    geo: quebec
+  #    pages: 2
 
 # More ideas. Check a new slug once by hand before adding it (one page, polite):
 #   go run ./cmd/carbuyer --make honda --model cr-v --pages 1 --no-score

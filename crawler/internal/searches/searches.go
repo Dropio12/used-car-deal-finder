@@ -28,9 +28,31 @@ const (
 	MaxPages    = 10
 )
 
+// Sources are the sites a search can walk, by the name stored in
+// listings.source. "facebook" is accepted as another name for "marketplace".
+var Sources = []string{"autohebdo", "kijiji", "lespac", "marketplace", "craigslist", "cargurus"}
+
+// SourceName resolves a configured source name ("" means autohebdo).
+func SourceName(s string) (string, error) {
+	s = strings.ToLower(strings.TrimSpace(s))
+	switch s {
+	case "":
+		return "autohebdo", nil
+	case "facebook":
+		return "marketplace", nil
+	}
+	for _, known := range Sources {
+		if s == known {
+			return s, nil
+		}
+	}
+	return "", fmt.Errorf("source %q: use one of %s", s, strings.Join(Sources, ", "))
+}
+
 // Search is one entry. Zero values fall back to the file's defaults.
 type Search struct {
 	Name     string   `yaml:"name"`
+	Source   string   `yaml:"source"` // default autohebdo
 	Make     string   `yaml:"make"`
 	Model    string   `yaml:"model"`
 	Geo      string   `yaml:"geo"`
@@ -55,8 +77,9 @@ type File struct {
 
 // Named is a ready-to-run query with a label for logs.
 type Named struct {
-	Name  string
-	Query listing.Query
+	Name   string
+	Source string
+	Query  listing.Query
 }
 
 // Plan is what a scheduled run does, in order.
@@ -122,7 +145,7 @@ func merge(d, s Search) Search {
 		return def
 	}
 	out := Search{
-		Name: s.Name, Make: s.Make, Model: s.Model,
+		Name: s.Name, Source: str(s.Source, d.Source), Make: s.Make, Model: s.Model,
 		Geo: str(s.Geo, d.Geo), Seller: str(s.Seller, d.Seller),
 		MinPrice: num(s.MinPrice, d.MinPrice), MaxPrice: num(s.MaxPrice, d.MaxPrice),
 		MinYear: num(s.MinYear, d.MinYear), MaxYear: num(s.MaxYear, d.MaxYear),
@@ -138,8 +161,17 @@ func merge(d, s Search) Search {
 }
 
 func (s Search) named() (Named, error) {
-	if s.Make == "" {
-		return Named{}, errors.New("`make` is required (a slug, e.g. toyota)")
+	src, err := SourceName(s.Source)
+	if err != nil {
+		return Named{}, err
+	}
+	switch {
+	case src == "autohebdo" && s.Make == "":
+		return Named{}, errors.New("`make` is required for autohebdo (a slug, e.g. toyota)")
+	case src == "kijiji" && (s.Make != "" || s.Model != ""):
+		return Named{}, errors.New("kijiji walks every car in a region: leave out `make` and `model`")
+	case s.Model != "" && s.Make == "":
+		return Named{}, errors.New("`model` needs a `make`")
 	}
 	for _, v := range []string{s.Make, s.Model, s.Geo} {
 		if strings.ContainsAny(v, "/?#&= ") {
@@ -180,5 +212,12 @@ func (s Search) named() (Named, error) {
 	if name == "" {
 		name = strings.TrimSpace(q.Make + " " + q.Model)
 	}
-	return Named{Name: name, Query: q}, nil
+	switch {
+	case src == "autohebdo":
+	case name == "":
+		name = strings.TrimSpace(src + " " + s.Geo)
+	default:
+		name = src + ": " + name
+	}
+	return Named{Name: name, Source: src, Query: q}, nil
 }

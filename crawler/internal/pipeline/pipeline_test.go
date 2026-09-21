@@ -18,9 +18,15 @@ type fakeSource struct {
 	result source.Result
 	err    error
 	got    listing.Query
+	name   string
 }
 
-func (f *fakeSource) Name() string { return "autohebdo" }
+func (f *fakeSource) Name() string {
+	if f.name == "" {
+		return "autohebdo"
+	}
+	return f.name
+}
 func (f *fakeSource) Search(_ context.Context, q listing.Query, onPage func(source.PageEvent)) (source.Result, error) {
 	f.got = q
 	if onPage != nil {
@@ -146,5 +152,21 @@ func TestShouldDetectRemovals(t *testing.T) {
 		if got := ShouldDetectRemovals(c.truncated, c.seen, c.shortfall); got.OK != c.ok {
 			t.Errorf("%+v: %+v", c, got)
 		}
+	}
+}
+
+func TestRunOtherSourceScopesAndComps(t *testing.T) {
+	src := &fakeSource{name: "craigslist", result: source.Result{Listings: []listing.Listing{{ID: listing.Str("a"), Source: "craigslist"}}}}
+	st := &fakeStore{}
+	p := New(src, st, &fakeScorer{})
+	p.CompsFromAllSources = true
+	if _, err := p.Run(context.Background(), listing.Query{Geo: "toronto"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := listing.Deref(st.scope.GeoSlug); got != "craigslist-toronto" {
+		t.Errorf("geo scope = %q, want craigslist-toronto", got)
+	}
+	if st.loadedFor.Source != "" {
+		t.Errorf("comps loaded for %q, want every source", st.loadedFor.Source)
 	}
 }
