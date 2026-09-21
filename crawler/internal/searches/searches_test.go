@@ -98,3 +98,34 @@ func TestShippedSearchesFile(t *testing.T) {
 		}
 	}
 }
+
+func TestParseSources(t *testing.T) {
+	plan, err := Parse([]byte(`defaults:
+  source: autohebdo
+searches:
+  - make: toyota
+  - source: kijiji
+    geo: ontario
+  - source: facebook
+    geo: toronto
+    make: honda
+    model: civic
+  - source: craigslist
+    geo: toronto
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []struct{ source, name, geo string }{
+		{"autohebdo", "toyota", ""},
+		{"kijiji", "kijiji ontario", "ontario"},
+		{"marketplace", "marketplace: honda civic", "toronto"},
+		{"craigslist", "craigslist toronto", "toronto"},
+	}
+	for i, w := range want {
+		got := plan.Searches[i]
+		if got.Source != w.source || got.Name != w.name || got.Query.Geo != w.geo {
+			t.Errorf("search %d = %s %q geo %q, want %s %q geo %q", i, got.Source, got.Name, got.Query.Geo, w.source, w.name, w.geo)
+		}
+	}
+}

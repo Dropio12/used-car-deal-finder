@@ -563,3 +563,52 @@ func (d *DB) Stats(ctx context.Context) (Counts, error) {
 		Scan(&c.Listings, &c.Removed, &c.PriceEvents, &c.Private, &c.Crawls)
 	return c, err
 }
+
+// VocabModel is one make/model pair as stored.
+type VocabModel struct{ Make, Model string }
+
+// Vocabulary lists the makes and make/model pairs stored by the given sources
+// (JS vehicleVocabulary, without canonical names). Sources that only have a
+// free-text title (LesPAC, Craigslist, Marketplace) read make and model out
+// of it by matching against this list.
+func (d *DB) Vocabulary(ctx context.Context, sources ...string) (makes []string, models []VocabModel, err error) {
+	if len(sources) == 0 {
+		sources = []string{"autohebdo", "kijiji"}
+	}
+	in := strings.TrimSuffix(strings.Repeat("?, ", len(sources)), ", ")
+	args := make([]any, len(sources))
+	for i, s := range sources {
+		args[i] = s
+	}
+	rows, err := d.db.QueryContext(ctx, `SELECT DISTINCT make FROM listings
+      WHERE make IS NOT NULL AND source IN (`+in+`)`, args...)
+	if err != nil {
+		return nil, nil, err
+	}
+	for rows.Next() {
+		var m string
+		if err := rows.Scan(&m); err != nil {
+			rows.Close()
+			return nil, nil, err
+		}
+		makes = append(makes, m)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	rows, err = d.db.QueryContext(ctx, `SELECT DISTINCT make, model FROM listings
+      WHERE make IS NOT NULL AND model IS NOT NULL AND source IN (`+in+`)`, args...)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var m VocabModel
+		if err := rows.Scan(&m.Make, &m.Model); err != nil {
+			return nil, nil, err
+		}
+		models = append(models, m)
+	}
+	return makes, models, rows.Err()
+}

@@ -23,7 +23,7 @@ func TestQueryFlags(t *testing.T) {
 	}{
 		{[]string{"--make", "toyota", "--model", "rav4", "--private", "--max-price", "15000", "--min-year", "2018"}, func(o options) bool {
 			q, err := o.query()
-			return err == nil && q.SellerType == "P" && *q.PriceTo == 15000 && *q.YearFrom == 2018 && q.Geo == "reg_qc" && q.MaxPages == 1
+			return err == nil && q.SellerType == "P" && *q.PriceTo == 15000 && *q.YearFrom == 2018 && q.Geo == "" && o.source == "autohebdo" && q.MaxPages == 1
 		}, false},
 		{[]string{"--dealer", "--pages", "3"}, func(o options) bool {
 			q, _ := o.query()

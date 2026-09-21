@@ -29,7 +29,7 @@ database_id = "b97b600d-446e-4df2-93a5-b710f0a99235"
 migrations_dir = "../d1/migrations"
 
 # Daily re-score: stores the best deals in deal_snapshots / deal_snapshot_items.
-# 11:00 UTC = 07:00 in Quebec (06:00 in winter). Cron times are always UTC.
+# 11:00 UTC = 07:00 in Toronto (06:00 in winter). Cron times are always UTC.
 [triggers]
 crons = ["0 11 * * *"]
 

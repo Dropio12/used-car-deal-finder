@@ -1,10 +1,13 @@
-// Command carbuyer searches autohebdo.net, stores what it finds in SQLite, and
+// Command carbuyer searches used-car sites (AutoHebdo, Kijiji, LesPAC,
+// Facebook Marketplace, Craigslist, CarGurus), stores what it finds in SQLite, and
 // prints the best deals as scored by the Rust carbuyer-scorer.
 // Go port of src/cli.js, plus the store and score steps.
 //
 //	carbuyer --make toyota --model rav4
 //	carbuyer --make honda --model civic --private --max-price 15000 --pages 3
 //	carbuyer --make toyota --model rav4 --offline testdata/rav4-qc.html
+//	carbuyer --source kijiji --geo ontario --pages 2
+//	carbuyer --source craigslist --geo toronto --private
 //	CARBUYER_INGEST_TOKEN=... carbuyer --make toyota --model rav4 --push https://carbuyer-api.example.workers.dev
 //	CARBUYER_INGEST_TOKEN=... carbuyer --searches searches.yml --no-score --push https://carbuyer-api.example.workers.dev
 //
@@ -26,7 +29,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"carbuyer/crawler/internal/autohebdo"
 	"carbuyer/crawler/internal/fetch"
 	"carbuyer/crawler/internal/listing"
 	"carbuyer/crawler/internal/pipeline"
@@ -44,11 +46,19 @@ import (
 // shell history and process listings.
 const TokenEnv = "CARBUYER_INGEST_TOKEN"
 
-const help = `carbuyer — search autohebdo.net, store, and score
+const help = `carbuyer — search used-car sites, store, and score
 
-  --make <slug>         e.g. toyota
+  --source <site>       autohebdo (default) | kijiji | lespac | facebook |
+                        craigslist | cargurus
+  --make <slug>         e.g. toyota (autohebdo, facebook; kijiji refuses it)
   --model <slug>        e.g. rav4 (requires --make)
-  --geo <token>         reg_qc (default, all Quebec) | cit_montreal | cit_quebec
+  --geo <token>         where to look; each site has its own tokens:
+                          autohebdo   reg_qc (default) | reg_on | cit_montreal | cit_quebec
+                          kijiji      quebec (default) | ontario | montreal | ottawa ...
+                          lespac      Quebec only (Montreal, 200 km)
+                          facebook    quebec (default, 4 cities) | ontario (14) | a city: toronto ...
+                          craigslist  montreal (default) | quebec | sherbrooke | toronto | ottawa ...
+                          cargurus    montreal (default) | toronto (100 km around)
   --private / --dealer  restrict to private sellers or dealers
   --min-price --max-price      applied server-side
   --min-year --max-year        applied locally; the site's year filter is inert
@@ -73,6 +83,7 @@ const help = `carbuyer — search autohebdo.net, store, and score
 `
 
 type options struct {
+	source                                      string
 	make, model, geo, sort, db, scorer, offline string
 	push, searches                              string
 	noScore                                     bool
@@ -98,9 +109,10 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs := flag.NewFlagSet("carbuyer", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fs.Usage = func() { fmt.Fprint(stderr, help) }
+	fs.StringVar(&o.source, "source", "autohebdo", "")
 	fs.StringVar(&o.make, "make", "", "")
 	fs.StringVar(&o.model, "model", "", "")
-	fs.StringVar(&o.geo, "geo", searchurl.GeoQuebec, "")
+	fs.StringVar(&o.geo, "geo", "", "")
 	fs.BoolVar(&o.private, "private", false, "")
 	fs.BoolVar(&o.dealer, "dealer", false, "")
 	fs.StringVar(&o.minPrice, "min-price", "", "")
@@ -277,6 +289,14 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 2
 	}
+	src, err := searches.SourceName(o.source)
+	if err != nil {
+		fmt.Fprintln(stderr, "--"+err.Error())
+		return 2
+	}
+	if src == "autohebdo" && q.Geo == "" {
+		q.Geo = searchurl.GeoQuebec
+	}
 	delay := fetch.DefaultDelay
 	var plan searches.Plan
 	if o.searches != "" {
@@ -294,14 +314,14 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	// Composition root: concrete implementations are chosen here and injected.
 	// One throttled fetcher for the whole run: requests never overlap and are
 	// spaced by `delay`, across searches too.
-	var fetcher fetch.Fetcher = fetch.NewThrottle(delay).Wrap(fetch.NewHTTPFetcher())
+	kit := &sourceKit{throttle: fetch.NewThrottle(delay)}
 	if o.offline != "" {
 		body, err := os.ReadFile(o.offline)
 		if err != nil {
 			fmt.Fprintln(stderr, err)
 			return 1
 		}
-		fetcher = fetch.Static{Body: string(body)}
+		kit.offline = fetch.Static{Body: string(body)}
 	}
 	exec := &scoring.ExecScorer{Binary: o.scorer}
 	if o.minComps != "" {
@@ -334,7 +354,21 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if pusher != nil {
 		st = store.Tee(db, pusher)
 	}
-	p := pipeline.New(autohebdo.New(fetcher), st, scorer)
+	kit.db = db
+	pipelines := map[string]*pipeline.Pipeline{}
+	pipelineFor := func(name string) (*pipeline.Pipeline, error) {
+		if p, ok := pipelines[name]; ok {
+			return p, nil
+		}
+		s, err := kit.build(ctx, name)
+		if err != nil {
+			return nil, err
+		}
+		p := pipeline.New(s, st, scorer)
+		p.CompsFromAllSources = name != "autohebdo"
+		pipelines[name] = p
+		return p, nil
+	}
 
 	var onPage func(source.PageEvent)
 	if !o.json {
@@ -343,9 +377,14 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	if o.searches != "" {
-		code := runPlan(ctx, p, plan, onPage, o.json, stdout, stderr)
+		code := runPlan(ctx, pipelineFor, plan, onPage, o.json, stdout, stderr)
 		printPushTotals(stderr, pusher)
 		return code
+	}
+	p, err := pipelineFor(src)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 2
 	}
 	rep, err := p.Run(ctx, q, onPage)
 	if err != nil {
@@ -402,11 +441,16 @@ type planResult struct {
 
 // runPlan runs the searches one after another through the same pipeline and
 // stops at the first error: a failing or blocking site gets no more requests.
-func runPlan(ctx context.Context, p *pipeline.Pipeline, plan searches.Plan, onPage func(source.PageEvent),
+func runPlan(ctx context.Context, pipelineFor func(string) (*pipeline.Pipeline, error), plan searches.Plan, onPage func(source.PageEvent),
 	asJSON bool, stdout, stderr io.Writer) int {
 	var results []planResult
 	for i, s := range plan.Searches {
 		fmt.Fprintf(stderr, "[%d/%d] %s\n", i+1, len(plan.Searches), s.Name)
+		p, err := pipelineFor(s.Source)
+		if err != nil {
+			fmt.Fprintf(stderr, "\n%s: %v\nstopping: %d of %d searches done\n", s.Name, err, i, len(plan.Searches))
+			return 1
+		}
 		rep, err := p.Run(ctx, s.Query, onPage)
 		if err != nil {
 			fmt.Fprintf(stderr, "\n%s: %v\nstopping: %d of %d searches done\n", s.Name, err, i, len(plan.Searches))
