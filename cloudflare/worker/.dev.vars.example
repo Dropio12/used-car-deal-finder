@@ -2,3 +2,9 @@
 INGEST_TOKEN=local-dev-token-change-me
 # Let local curl call /api/deals directly (production default is "false").
 PUBLIC_READ_API=true
+# Optional: Telegram alerts through Composio (all three, or alerts stay dashboard-only).
+# COMPOSIO_API_KEY=
+# COMPOSIO_USER_ID=me
+# TELEGRAM_CHAT_ID=
+# Optional: AI photo check through Baseten (only runs with Telegram on).
+# BASETEN_API_KEY=
