@@ -41,6 +41,14 @@ impl D1Store {
         self.prepare(s)?.all().await.map_err(err)?.results::<Value>().map_err(err)
     }
 
+    /// A listing's stored photo links (JSON array in `image_urls`), for the
+    /// photo check. Kept out of `LOAD_SQL`: the scorer never needs them.
+    pub async fn image_urls(&self, id: &str) -> Result<Vec<String>, String> {
+        let q = Stmt::new("SELECT image_urls FROM listings WHERE id = ?1", vec![Param::Text(id.to_string())]);
+        let raw = self.rows(&q).await?.into_iter().next().and_then(|r| r.get("image_urls")?.as_str().map(str::to_string));
+        Ok(raw.and_then(|s| serde_json::from_str::<Vec<String>>(&s).ok()).unwrap_or_default())
+    }
+
     async fn batch(&self, stmts: Vec<Stmt>) -> Result<(), String> {
         let prepared = stmts.iter().map(|s| self.prepare(s)).collect::<Result<Vec<_>, _>>()?;
         // A D1 batch runs as one transaction: all of it lands or none does.

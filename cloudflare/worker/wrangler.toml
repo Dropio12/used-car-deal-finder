@@ -54,10 +54,20 @@ ALERT_MIN_DISCOUNT_PCT = "15"
 ALERT_MIN_COMPS = "6"
 ALERT_INCLUDE_DAMAGED = "false"
 
+# Optional Telegram message per alert, through Composio (DEPLOY.md, step 11).
+# Off until both of these and the COMPOSIO_API_KEY secret are set.
+COMPOSIO_USER_ID = ""
+TELEGRAM_CHAT_ID = ""
+# Optional AI photo check before each message, through Baseten. Needs the
+# BASETEN_API_KEY secret; the model must accept images.
+BASETEN_VISION_MODEL = "moonshotai/Kimi-K3"
+
 # Secrets are NOT in this file:
-#   INGEST_TOKEN  bearer token for POST /api/listings
-#                 production: npx wrangler secret put INGEST_TOKEN
-#                 local dev:  put INGEST_TOKEN=... in .dev.vars (git-ignored)
+#   INGEST_TOKEN      bearer token for POST /api/listings
+#                     production: npx wrangler secret put INGEST_TOKEN
+#                     local dev:  put INGEST_TOKEN=... in .dev.vars (git-ignored)
+#   COMPOSIO_API_KEY  optional, Telegram alerts:  npx wrangler secret put COMPOSIO_API_KEY
+#   BASETEN_API_KEY   optional, photo check:      npx wrangler secret put BASETEN_API_KEY
 
 [observability]
 enabled = true

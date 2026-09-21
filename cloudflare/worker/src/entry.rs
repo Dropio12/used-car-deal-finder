@@ -18,7 +18,10 @@ use crate::alerts::{AlertRule, AlertsQuery, NoNotifier};
 use crate::auth::{bearer_ok, read_allowed};
 use crate::d1::D1Store;
 use crate::deals::DealsQuery;
+use crate::notify_http::{AnyNotifier, TelegramNotifier};
 use crate::service::{self, ApiError, SnapshotStore};
+use crate::telegram::ComposioConfig;
+use crate::vision::VisionConfig;
 
 fn now_iso() -> String {
     js_sys::Date::new_0().to_iso_string().as_string().unwrap_or_default()
@@ -67,6 +70,24 @@ fn store(env: &Env) -> Result<D1Store> {
     Ok(D1Store::new(env.d1("DB")?))
 }
 
+/// Telegram (through Composio) when COMPOSIO_API_KEY, COMPOSIO_USER_ID and
+/// TELEGRAM_CHAT_ID are all set, with a Baseten photo check when
+/// BASETEN_API_KEY is too. Otherwise alerts stay dashboard-only. Keys are
+/// read as secrets first, then as vars, so either works in .dev.vars.
+fn notifier(env: &Env) -> Result<AnyNotifier> {
+    let get = |k: &str| {
+        env.secret(k).ok().map(|v| v.to_string()).or_else(|| env.var(k).ok().map(|v| v.to_string()))
+    };
+    Ok(match ComposioConfig::from_vars(get) {
+        Some(composio) => AnyNotifier::Telegram(TelegramNotifier {
+            composio,
+            vision: VisionConfig::from_vars(get),
+            store: store(env)?,
+        }),
+        None => AnyNotifier::None(NoNotifier),
+    })
+}
+
 #[event(fetch)]
 async fn fetch(mut req: Request, env: Env, _ctx: Context) -> Result<Response> {
     let url = req.url()?;
@@ -97,9 +118,9 @@ async fn fetch(mut req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 Ok(v) => v,
                 Err(e) => return error_response(&ApiError::bad_request(format!("body is not valid JSON: {e}"))),
             };
-            // Composition root: the notifier is chosen here. NoNotifier = alerts
-            // are stored and shown on the dashboard only (see alerts::Notifier).
-            match service::ingest_and_alert(&store(&env)?, &NoNotifier, &alert_rule(&env), &body, &now_iso()).await {
+            // Composition root: the notifier is chosen here (see `notifier`).
+            // Without the Composio settings, alerts are dashboard-only.
+            match service::ingest_and_alert(&store(&env)?, &notifier(&env)?, &alert_rule(&env), &body, &now_iso()).await {
                 Ok(out) => {
                     if let Some(e) = &out.alert_error {
                         console_error!("alerts: {e}");

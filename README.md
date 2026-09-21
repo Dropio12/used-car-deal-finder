@@ -11,7 +11,8 @@ earlier JavaScript tool (not part of this repo).
 - **Rust** (`scorer/`): builds the local price baseline and scores each listing
   (how far under the baseline it is priced).
 - **Cloudflare** (`cloudflare/`): a Rust Worker (workers-rs) that reuses the scorer crate,
-  stores listings in D1, records **snipe alerts** for strong new deals, re-scores daily
+  stores listings in D1, records **snipe alerts** for strong new deals (optionally sent to
+  Telegram through Composio, with an AI photo check on Baseten), re-scores daily
   with a Cron Trigger, and a small Pages dashboard with a "New deals" section. Runs
   privately behind Cloudflare Access; [DEPLOY.md](DEPLOY.md) has every step.
 - **Schedule** (`.github/workflows/crawl.yml`, `scripts/crawl-and-push.ps1`): crawls the

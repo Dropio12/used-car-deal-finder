@@ -286,10 +286,51 @@ cd cloudflare/worker
 npx wrangler d1 execute carbuyer --remote --command "SELECT created_at, discount_pct, year, make, model, price, url FROM new_deal_alerts ORDER BY created_at DESC LIMIT 10"
 ```
 
+### Optional: Telegram messages (Composio) and an AI photo check (Baseten)
+
+Both are off until you set them, and neither can stop an ingest: a failed photo
+check just leaves the notes out, and a failed message leaves the alert stored and
+unmarked (its reason shows in `npx wrangler tail`).
+
+**Telegram, through Composio** (`src/telegram.rs`, `src/notify_http.rs`). Every new
+alert becomes a message with the gap, asking vs typical price, km, city and the link.
+
+1. On Telegram, message **@BotFather** > `/newbot`, and copy the bot token.
+2. In the Composio dashboard, connect the **Telegram** toolkit with that token for a
+   user id of your choosing (e.g. `me`), and copy your Composio API key.
+3. Send your bot any message, then get your chat id (Composio's
+   `TELEGRAM_GET_UPDATES` tool shows it).
+4. Set them and redeploy:
+
+   ```sh
+   cd cloudflare/worker
+   npx wrangler secret put COMPOSIO_API_KEY
+   ```
+
+   and in `wrangler.toml` under `[vars]`: `COMPOSIO_USER_ID = "me"` and
+   `TELEGRAM_CHAT_ID = "<your chat id>"`, then `npx wrangler deploy`.
+
+**Photo check, through Baseten** (`src/vision.rs`). Before each message, up to 6 of
+the car's photos go to a vision model, which lists what it can see (rust, repaint,
+dents, curb rash, tires, dash lights, wear vs mileage). The notes are added to the
+message. It only runs when Telegram is on, for the first 3 alerts of a push.
+
+```sh
+npx wrangler secret put BASETEN_API_KEY
+```
+
+The model defaults to `moonshotai/Kimi-K3`; set `BASETEN_VISION_MODEL` under `[vars]`
+to change it. It must accept images (Kimi-K3, GLM-5.2/5.3, DeepSeek-V4.1-Flash do;
+most others do not). Photos are chosen by the seller: "nothing visible" is not
+"nothing wrong".
+
+For `npx wrangler dev`, put the same keys in `.dev.vars` (see `.dev.vars.example`).
+
 ### Email notifications later
 
-Alerts go through the `Notifier` trait in `cloudflare/worker/src/alerts.rs`; today
-`entry.rs` passes `NoNotifier` (dashboard only). Alerts a notifier reports as delivered
+Alerts go through the `Notifier` trait in `cloudflare/worker/src/alerts.rs`; `entry.rs`
+passes the Telegram notifier above when it is configured, and `NoNotifier`
+(dashboard only) otherwise. Alerts a notifier reports as delivered
 get `notified_at` set; if it fails, the alerts stay stored and the crawler's log shows
 the error. To add email:
 
