@@ -4,6 +4,12 @@
 - It checks what cars like each one usually sell for.
 - When a car is a lot cheaper than that, it sends you a message so you get there first.
 
+## Watch it
+
+[![Watch the demo video](docs/demo.jpg)](docs/demo.mp4)
+
+- Click the picture to play the video.
+
 ## How it works
 
 - **The looker** (a Go program) opens car websites and writes down every car it sees.
