@@ -6,7 +6,7 @@
 
 ## Watch it
 
-[![Watch the demo video](docs/demo-rav4-18000.jpg)](docs/demo.mp4)
+[![Watch the demo video](docs/demo-rav4-18000.jpg)](https://github.com/user-attachments/assets/25a4332b-28cd-499a-af3a-b659f4d36b68)
 
 - Click the picture to play the video.
 
