@@ -6,7 +6,7 @@
 
 ## Watch it
 
-https://github.com/user-attachments/assets/25a4332b-28cd-499a-af3a-b659f4d36b68
+https://github.com/user-attachments/assets/434e20ee-bac1-46ee-a032-4330bba8d872
 
 ## How it works
 
