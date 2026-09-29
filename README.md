@@ -6,7 +6,7 @@
 
 ## Watch it
 
-[![Watch the demo video](docs/demo.jpg)](docs/demo.mp4)
+[![Watch the demo video](docs/demo-rav4-18000.jpg)](docs/demo.mp4)
 
 - Click the picture to play the video.
 
