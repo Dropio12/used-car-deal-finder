@@ -20,10 +20,10 @@
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\crawl-and-push.ps1
 
 .EXAMPLE
-  # every 30 minutes with Windows Task Scheduler (run in PowerShell, as you):
+  # every 5 minutes with Windows Task Scheduler (run in PowerShell, as you):
   $script  = (Resolve-Path scripts\crawl-and-push.ps1).Path
   $action  = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$script`""
-  $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 30)
+  $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
   $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 20) -StartWhenAvailable
   Register-ScheduledTask -TaskName 'carbuyer crawl' -Action $action -Trigger $trigger -Settings $settings
   # remove it later: Unregister-ScheduledTask -TaskName 'carbuyer crawl'

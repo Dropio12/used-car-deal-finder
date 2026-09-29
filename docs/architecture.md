@@ -10,9 +10,9 @@ C4Context
   Person(user, "Car flipper", "Wants underpriced used cars in Quebec before anyone else")
   System(carbuyer, "Used-Car Deal Finder", "Crawls listings on a schedule, stores them, prices each car against local comparable cars, raises snipe alerts")
   System_Ext(autohebdo, "autohebdo.net", "Used-car listing site. Server-rendered Next.js pages with __NEXT_DATA__ JSON")
-  System_Ext(gha, "GitHub Actions", "Runs the scheduled crawl every 30 minutes (or Windows Task Scheduler on the owner's PC)")
+  System_Ext(gha, "GitHub Actions", "Runs the scheduled crawl every 5 minutes (or Windows Task Scheduler on the owner's PC)")
   System_Ext(access, "Cloudflare Access", "Zero Trust login in front of the dashboard: only the owner's email gets in")
-  Rel(gha, carbuyer, "Runs the crawler on a cron", "*/30 * * * *")
+  Rel(gha, carbuyer, "Runs the crawler on a cron", "*/5 * * * *")
   Rel(user, carbuyer, "Runs searches from the CLI, edits searches.yml", "command line")
   Rel(user, access, "Opens the dashboard, checks New deals", "HTTPS, email one-time PIN")
   Rel(access, carbuyer, "Lets authenticated requests through", "HTTPS")
@@ -28,7 +28,7 @@ C4Container
   System_Ext(autohebdo, "autohebdo.net")
   System_Ext(access, "Cloudflare Access", "Allow policy: owner's email")
   System_Boundary(sched, "Scheduler (one of)") {
-    Container(gha, "crawl workflow", "GitHub Actions .github/workflows/crawl.yml", "Every 30 min: builds the Go CLI, runs --searches searches.yml --no-score --push; token from a repo secret, URL from a repo variable")
+    Container(gha, "crawl workflow", "GitHub Actions .github/workflows/crawl.yml", "Every 5 min: builds the Go CLI, runs --searches searches.yml --no-score --push; token from a repo secret, URL from a repo variable")
     Container(task, "crawl-and-push.ps1", "PowerShell + Windows Task Scheduler", "Same run from the owner's PC; token from the user environment; lock file, daily log")
   }
   System_Boundary(local, "Owner's machine") {

@@ -15,9 +15,9 @@ name: crawl
 
 on:
   schedule:
-    # Every 30 minutes (UTC). GitHub may start scheduled runs a few minutes
+    # Every 5 minutes (UTC), the fastest GitHub allows. GitHub may start scheduled runs a few minutes
     # late, and pauses schedules after 60 days without repo activity.
-    - cron: "*/30 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       searches:
