@@ -2,14 +2,14 @@
 
 The exact steps to run it **privately on real listings**: a Worker + D1 database +
 daily cron, a Pages dashboard with snipe alerts, Cloudflare Access so only your email
-can open it, and a crawl every 30 minutes (GitHub Actions or your Windows PC).
+can open it, and a crawl every 5 minutes (GitHub Actions or your Windows PC).
 
 Already deployed and only updating? Go to
 [Upgrade: snipe alerts (migration 0003)](#upgrade-snipe-alerts-migration-0003).
 
 ```
  GitHub Actions / your PC ──POST /api/listings, Bearer token──► Worker carbuyer-api ──► D1 "carbuyer"
- (crawl every 30 min)                                              │  new/cheaper + strong deal
+ (crawl every 5 min)                                              │  new/cheaper + strong deal
                                                                    │  ──► new_deal_alerts
                                                              ▲      ▲ cron 11:00 UTC: snapshot
  you (browser) ──Cloudflare Access──► Pages carbuyer-dashboard│
@@ -208,7 +208,7 @@ Change the time in `[triggers] crons` (always UTC) and redeploy. To use a lower
 comps threshold by default (like the CLI's `--min-comps 3`), set
 `DEFAULT_MIN_COMPS = "3"` under `[vars]` and redeploy.
 
-## 10. Crawl real listings every 30 minutes
+## 10. Crawl real listings every 5 minutes
 
 The searches live in `crawler/searches.yml` (make/model slugs, price cap, pages,
 newest first). Edit it, commit, and the next run uses it. Pick **one** runner.
@@ -240,7 +240,7 @@ gh variable set CARBUYER_API_URL --body "https://carbuyer-api.<your-subdomain>.w
 
 Then **Actions > crawl > Run workflow** once and read the log: one line per
 search (`toyota rav4: 40 listings ...`) and `pushed to ...: N seen, N added, ...,
-N new deal alerts`. After that it runs every 30 minutes by itself.
+N new deal alerts`. After that it runs every 5 minutes by itself.
 
 Good to know:
 - Scheduled runs only run from the default branch, may start a few minutes late,
@@ -259,7 +259,7 @@ Good to know:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\crawl-and-push.ps1
 ```
 
-The script header has the `Register-ScheduledTask` lines for every 30 minutes.
+The script header has the `Register-ScheduledTask` lines for every 5 minutes.
 Logs: `%LOCALAPPDATA%\carbuyer\logs\crawl-YYYYMMDD.log`.
 
 ## 11. Snipe alerts

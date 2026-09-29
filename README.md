@@ -1,6 +1,6 @@
 # Used-Car Deal Finder (carbuyer)
 
-- A robot reads used-car ads in Ontario, every 30 minutes.
+- A robot reads used-car ads in Ontario, every 5 minutes.
 - It checks what cars like each one usually sell for.
 - When a car is a lot cheaper than that, it sends you a message so you get there first.
 
@@ -16,7 +16,7 @@ https://github.com/user-attachments/assets/434e20ee-bac1-46ee-a032-4330bba8d872
 - **The cloud helper** (a Cloudflare Worker) gets the new cars and rings a bell for the good ones.
 - **The bell** is a snipe alert: a Telegram message saying "this one is cheap, go now".
 - **The eyes** (an AI on Baseten) look at the photos for rust or dents before you drive out.
-- **The alarm clock** (GitHub Actions) wakes the looker up every 30 minutes.
+- **The alarm clock** (GitHub Actions) wakes the looker up every 5 minutes.
 
 ## What "cheap" means
 
@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/434e20ee-bac1-46ee-a032-4330bba8d872
 
 ```mermaid
 flowchart TB
-  gha["⏰ <b>GitHub Actions</b><br/><i>[external system]</i><br/>Alarm clock, every 30 min"]
+  gha["⏰ <b>GitHub Actions</b><br/><i>[external system]</i><br/>Alarm clock, every 5 min"]
   carbuyer["🚗 <b>Used-Car Deal Finder</b><br/><i>[our system]</i><br/>Finds cars priced under their market value"]
   sites["🌐 <b>6 car websites</b><br/><i>[external systems]</i><br/>AutoHebdo · Kijiji · LesPAC<br/>Facebook · Craigslist · CarGurus"]
   ai["📸 <b>Baseten AI</b><br/><i>[external system]</i><br/>Looks at the car photos"]
@@ -133,7 +133,7 @@ flowchart TB
   H --> I["📱 Telegram buzz"]
 ```
 
-## Every 30 minutes
+## Every 5 minutes
 
 ```mermaid
 sequenceDiagram
@@ -180,7 +180,7 @@ sequenceDiagram
   The CLI saves them to SQLite, asks the scorer for prices, and can push them to the Worker.
 - `scorer/` (Rust): builds the baseline and scores each car. The Worker reuses it.
 - `cloudflare/`: the Worker, the D1 database, the daily cron and the dashboard.
-- `.github/workflows/crawl.yml`: runs `crawler/searches.yml` every 30 minutes.
+- `.github/workflows/crawl.yml`: runs `crawler/searches.yml` every 5 minutes.
 - It started as a Go and Rust copy of an older JavaScript tool (not in this repo).
 
 ```mermaid
@@ -259,7 +259,7 @@ go run ./cmd/carbuyer --make toyota --model rav4 --offline testdata/rav4-qc.html
 - Unknown keys are refused, so a typo can't quietly drop a filter.
 - Run it by hand with `go run ./cmd/carbuyer --searches searches.yml --no-score`.
   Add `--push <worker url>` and `CARBUYER_INGEST_TOKEN` to send the cars to the Worker.
-- GitHub Actions runs it every 30 minutes once the secret `CARBUYER_INGEST_TOKEN` and the
+- GitHub Actions runs it every 5 minutes once the secret `CARBUYER_INGEST_TOKEN` and the
   variable `CARBUYER_API_URL` are set ([DEPLOY.md](DEPLOY.md), step 10).
 - Or run `scripts/crawl-and-push.ps1` from Windows Task Scheduler, if a site blocks cloud IPs.
   Pick one of the two, not both.
